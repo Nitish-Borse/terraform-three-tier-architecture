@@ -1,0 +1,15 @@
+region_name   = "us-east-1"
+ami_id        = "YOUR_AMI_ID"
+instance_type = "t3.micro"
+
+db_username = "YOUR_DB_USERNAME"
+db_password = "YOUR_DB_PASSWORD"
+
+availability_zones = [
+  "us-east-1a",
+  "us-east-1b",
+  "us-east-1c",
+  "us-east-1d"
+]
+
+ssh_cidr = "YOUR_PUBLIC_IP/32"
