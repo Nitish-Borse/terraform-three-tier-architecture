@@ -5,8 +5,15 @@ terraform {
       version = "~> 6.0"
     }
   }
-}
 
+  backend "s3" {
+    bucket       = "nitish-borse-terraform-state-2026"
+    key          = "terraform-three-tier-architecture/terraform.tfstate"
+    region       = "us-east-1"
+    use_lockfile = true
+    encrypt      = true
+  }
+}
 
 provider "aws" {
   region = var.region_name
