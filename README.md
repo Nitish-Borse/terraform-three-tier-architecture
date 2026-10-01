@@ -193,7 +193,7 @@ Before using this project, make sure you have:
 -   An AWS account
 -   Terraform installed
 -   AWS credentials configured securely
--   An AWS EC2 key pair public key available locally
+-   An SSH public key available locally
 -   Permission to create the required AWS resources
 
 The Terraform configuration expects the public key at:
@@ -250,6 +250,46 @@ credentials.
 
 The repository includes `terraform.tfvars.example` so that users can
 create their own local configuration.
+
+------------------------------------------------------------------------
+
+## Remote Terraform State
+
+Terraform state for this project is stored remotely in Amazon S3.
+
+The project uses the following S3 backend configuration:
+
+```hcl
+backend "s3" {
+  bucket       = "nitish-borse-terraform-state-2026"
+  key          = "terraform-three-tier-architecture/terraform.tfstate"
+  region       = "us-east-1"
+  use_lockfile = true
+  encrypt      = true
+}
+```
+
+The S3 state bucket is configured with:
+
+- S3 Versioning enabled
+- Server-side encryption using SSE-S3
+- S3 Block Public Access enabled
+- Remote Terraform state storage
+- Terraform state locking using the S3 backend lockfile
+
+Using a remote backend keeps the Terraform state outside the local project
+directory and provides centralized state storage when working with the
+infrastructure from different environments or machines.
+
+The Terraform state file is not committed to GitHub.
+
+Initialize or reinitialize the backend with:
+
+```bash
+terraform init
+```
+
+If the backend configuration changes, run `terraform init` again.
 
 ------------------------------------------------------------------------
 
@@ -470,6 +510,8 @@ This project helped me practice:
 -   RDS subnet groups
 -   Private database networking
 -   Terraform validation and planning
+-   Remote Terraform state with Amazon S3
+-   Terraform state locking
 -   Infrastructure cleanup with `terraform destroy`
 -   Basic infrastructure security practices
 
@@ -510,4 +552,5 @@ internet access.
 ## License
 
 This project is intended for learning and portfolio purposes.
+
 
