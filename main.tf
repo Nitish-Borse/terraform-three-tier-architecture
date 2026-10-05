@@ -7,7 +7,6 @@ terraform {
   }
 
   backend "s3" {
-    bucket       = "nitish-borse-terraform-state-2026"
     key          = "terraform-three-tier-architecture/terraform.tfstate"
     region       = "us-east-1"
     use_lockfile = true

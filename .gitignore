@@ -18,3 +18,6 @@ crash.*.log
 # Private keys
 *.pem
 *.key
+
+# Local Terraform backend configuration
+backend.hcl

@@ -5,74 +5,73 @@ on AWS using reusable Terraform modules.
 
 The infrastructure is divided into:
 
--   **Web tier** --- Public subnet with a public EC2 instance
--   **Application tier** --- Private subnet with an EC2 instance without
-    a public IP
--   **Database tier** --- Private subnets with Amazon RDS for MySQL
--   **Network layer** --- VPC, Internet Gateway, route tables, NAT
-    Gateway, and Elastic IP
--   **Security layer** --- Separate security groups for Web,
-    Application, and Database tiers
+-   Web tier --- Public subnet with a public EC2 instance
+-   Application tier --- Private subnet with an EC2 instance without a
+    public IP
+-   Database tier --- Private subnets with Amazon RDS for MySQL
+-   Network layer --- VPC, Internet Gateway, route tables, NAT Gateway,
+    and Elastic IP
+-   Security layer --- Separate security groups for Web, Application,
+    and Database tiers
 
 This project was created as a practical learning project to understand
 AWS networking, Terraform modules, security groups, private/public
 subnets, NAT Gateway routing, EC2, and RDS.
 
-------------------------------------------------------------------------
-
 ## Architecture
 
-``` mermaid
-flowchart TB
-    Internet((Internet))
-    IGW[Internet Gateway]
-    NAT[NAT Gateway]
+![Terraform AWS Three-Tier
+Architecture](screenshots/00-terraform-architecture.png)
 
-    subgraph VPC["AWS VPC 10.0.0.0/16"]
+### Architecture Overview
 
-        subgraph WEB["Public Web Subnet<br/>10.0.0.0/24"]
-            WebSG["Web Security Group<br/>SSH from configured IP<br/>HTTP 80 / HTTPS 443"]
-            WebEC2["Web EC2<br/>Public IP"]
-            WebSG --> WebEC2
-        end
+The infrastructure is organized into three tiers:
 
-        subgraph APP["Private App Subnet<br/>10.0.1.0/24"]
-            AppSG["App Security Group<br/>TCP 8080 from Web SG"]
-            AppEC2["App EC2<br/>No Public IP"]
-            AppSG --> AppEC2
-        end
+-   **Web Tier:** Public EC2 instance deployed in a public subnet.
+-   **Application Tier:** Private EC2 instance without a public IP.
+-   **Database Tier:** Amazon RDS for MySQL deployed using two private
+    database subnets.
+-   **Network Layer:** VPC, Internet Gateway, NAT Gateway, route tables,
+    and Elastic IP.
+-   **Security Layer:** Separate security groups control communication
+    between the Web, Application, and Database tiers.
 
-        subgraph DB["Private DB Subnets<br/>10.0.2.0/24<br/>10.0.3.0/24"]
-            DBSG["DB Security Group<br/>MySQL 3306 from App SG"]
-            RDS["Amazon RDS MySQL<br/>10 GB Encrypted Storage"]
-            DBSG --> RDS
-        end
-    end
+The Application tier uses the NAT Gateway for outbound internet access
+without being directly exposed to the internet.
 
-    Internet --> IGW
-    IGW --> WebEC2
-    WebEC2 -->|TCP 8080| AppEC2
-    AppEC2 -->|TCP 3306| RDS
-    AppEC2 -->|Outbound Internet| NAT
-    NAT --> IGW
-```
+## Design Decisions
 
-### Traffic Flow
-
-1.  Internet traffic reaches the Web tier through the Internet Gateway.
-2.  The Web EC2 instance is deployed in a public subnet and has a public
+-   The Web tier is placed in a public subnet to accept internet
+    traffic.
+-   The Application tier is placed in a private subnet without a public
     IP.
-3.  Application traffic is allowed from the Web security group to the
-    App security group on TCP port `8080`.
-4.  The App EC2 instance is deployed in a private subnet and does not
-    have a public IP.
-5.  Database traffic is allowed from the App security group to the DB
-    security group on TCP port `3306`.
-6.  RDS MySQL is deployed privately using two database subnets.
-7.  The App subnet uses the NAT Gateway for outbound internet access
-    without exposing the App EC2 instance directly to the internet.
+-   The Database tier is kept private and is not publicly accessible.
+-   Security groups restrict communication between the different tiers.
+-   The NAT Gateway provides outbound internet access for the private
+    Application tier.
+-   The database uses two private subnets for the RDS subnet group.
+-   Terraform modules separate the VPC, Web, Application, and Database
+    infrastructure.
 
-------------------------------------------------------------------------
+## Traffic Flow
+
+Internet traffic reaches the Web tier through the Internet Gateway.
+
+The Web EC2 instance is deployed in a public subnet and has a public IP.
+
+Application traffic is allowed from the Web security group to the App
+security group on TCP port 8080.
+
+The App EC2 instance is deployed in a private subnet and does not have a
+public IP.
+
+Database traffic is allowed from the App security group to the DB
+security group on TCP port 3306.
+
+RDS MySQL is deployed privately using two database subnets.
+
+The App subnet uses the NAT Gateway for outbound internet access without
+exposing the App EC2 instance directly to the internet.
 
 ## AWS Resources
 
@@ -81,9 +80,9 @@ This project provisions the following major AWS resources:
 -   VPC with CIDR `10.0.0.0/16`
 -   Internet Gateway
 -   4 subnets across multiple Availability Zones
-    -   1 public Web subnet
-    -   1 private App subnet
-    -   2 private DB subnets
+-   1 public Web subnet
+-   1 private App subnet
+-   2 private DB subnets
 -   Public route table
 -   Private App route table
 -   Private DB route table
@@ -97,8 +96,6 @@ This project provisions the following major AWS resources:
 -   RDS subnet group
 -   RDS MySQL database
 -   EC2 key pair
-
-------------------------------------------------------------------------
 
 ## Security Design
 
@@ -131,8 +128,6 @@ The App EC2 instance does not have a public IP.
 
 The RDS database is not publicly accessible.
 
-------------------------------------------------------------------------
-
 ## Terraform Module Structure
 
 The infrastructure is divided into separate modules to keep the
@@ -148,6 +143,7 @@ Three-Tier-Architecture/
 ├── .gitignore
 ├── .terraform.lock.hcl
 ├── README.md
+├── backend.hcl.example
 │
 ├── vpc-module/
 │   ├── main.tf
@@ -170,6 +166,7 @@ Three-Tier-Architecture/
 │   └── outputs.tf
 │
 └── screenshots/
+    ├── 00-terraform-architecture.png
     ├── 01-vpc-resource-map.png
     ├── 02-vpc-subnets.png
     ├── 03-route-tables.png
@@ -183,8 +180,6 @@ Three-Tier-Architecture/
     ├── 11-terraform-output.png
     └── 12-terraform-plan.png
 ```
-
-------------------------------------------------------------------------
 
 ## Prerequisites
 
@@ -204,8 +199,6 @@ The Terraform configuration expects the public key at:
 
 If you use a different public key path, update the `aws_key_pair`
 resource in the root `main.tf`.
-
-------------------------------------------------------------------------
 
 ## Configuration
 
@@ -246,59 +239,103 @@ ssh_cidr = "YOUR_PUBLIC_IP/32"
 `terraform.tfvars` contains environment-specific values and database
 credentials.
 
-**Do not commit `terraform.tfvars` to GitHub.**
+Do not commit `terraform.tfvars` to GitHub.
 
 The repository includes `terraform.tfvars.example` so that users can
 create their own local configuration.
 
-------------------------------------------------------------------------
-
 ## Remote Terraform State
 
-Terraform state for this project is stored remotely in Amazon S3.
+This project supports storing Terraform state remotely in Amazon S3.
 
-The project uses the following S3 backend configuration:
+The S3 backend configuration is kept separate from the public repository
+so that each user can configure their own Terraform state bucket.
 
-```hcl
-backend "s3" {
-  bucket       = "nitish-borse-terraform-state-2026"
-  key          = "terraform-three-tier-architecture/terraform.tfstate"
-  region       = "us-east-1"
-  use_lockfile = true
-  encrypt      = true
-}
+### Backend Configuration
+
+The repository includes:
+
+``` text
+backend.hcl.example
 ```
 
-The S3 state bucket is configured with:
+Create your local backend configuration:
 
-- S3 Versioning enabled
-- Server-side encryption using SSE-S3
-- S3 Block Public Access enabled
-- Remote Terraform state storage
-- Terraform state locking using the S3 backend lockfile
-
-Using a remote backend keeps the Terraform state outside the local project
-directory and provides centralized state storage when working with the
-infrastructure from different environments or machines.
-
-The Terraform state file is not committed to GitHub.
-
-Initialize or reinitialize the backend with:
-
-```bash
-terraform init
+``` bash
+cp backend.hcl.example backend.hcl
 ```
 
-If the backend configuration changes, run `terraform init` again.
+Edit the file and provide your own S3 bucket:
 
-------------------------------------------------------------------------
+``` hcl
+bucket = "YOUR-S3-TERRAFORM-STATE-BUCKET"
+```
+
+The local `backend.hcl` file is excluded from Git using `.gitignore`.
+
+### S3 Bucket Requirements
+
+Before initializing Terraform, create an S3 bucket for the Terraform
+state.
+
+The recommended configuration is:
+
+-   S3 Versioning enabled
+-   Server-side encryption enabled
+-   S3 Block Public Access enabled
+-   Bucket access restricted through AWS IAM permissions
+
+### Initialize the Backend
+
+Initialize Terraform using the local backend configuration:
+
+``` bash
+terraform init -backend-config=backend.hcl
+```
+
+The Terraform state is stored using the following key:
+
+``` text
+terraform-three-tier-architecture/terraform.tfstate
+```
+
+The backend also uses the S3 lockfile mechanism:
+
+``` hcl
+use_lockfile = true
+```
+
+and enables encryption:
+
+``` hcl
+encrypt = true
+```
+
+### Important
+
+Do not commit the following files to GitHub:
+
+``` text
+backend.hcl
+terraform.tfvars
+*.tfstate
+*.tfstate.*
+*.tfplan
+```
+
+The repository includes example files that can be used as templates for
+local configuration.
+
+For this learning project, the S3 backend can be created before
+deployment and removed after the Terraform infrastructure has been
+destroyed.
 
 ## Terraform Workflow
 
 ### 1. Initialize Terraform
 
 ``` bash
-terraform init
+terraform init -backend-config=backend.hcl
 ```
 
 ### 2. Format the configuration
@@ -358,18 +395,62 @@ terraform destroy
 
 Confirm the destruction when prompted.
 
-------------------------------------------------------------------------
+## Verification
+
+After applying the Terraform configuration, use the following commands
+to inspect the infrastructure.
+
+### Terraform State
+
+List resources tracked by Terraform:
+
+``` bash
+terraform state list
+```
+
+Display the current Terraform state:
+
+``` bash
+terraform show
+```
+
+Display Terraform outputs:
+
+``` bash
+terraform output
+```
+
+### AWS Resource Verification
+
+Verify the VPC:
+
+``` bash
+aws ec2 describe-vpcs
+```
+
+Verify EC2 instances:
+
+``` bash
+aws ec2 describe-instances
+```
+
+Verify the RDS instance:
+
+``` bash
+aws rds describe-db-instances
+```
+
+These commands can be used to confirm that the resources created by
+Terraform exist in AWS.
 
 ## Terraform Outputs
 
 The root module provides the following outputs:
 
-``` text
-vpc_id
-web_instance_id
-app_instance_id
-rds_endpoint
-```
+-   `vpc_id`
+-   `web_instance_id`
+-   `app_instance_id`
+-   `rds_endpoint`
 
 The RDS endpoint can also be displayed with:
 
@@ -377,7 +458,58 @@ The RDS endpoint can also be displayed with:
 terraform output -raw rds_endpoint
 ```
 
-------------------------------------------------------------------------
+## Troubleshooting
+
+### Check Terraform Configuration
+
+``` bash
+terraform fmt -recursive
+terraform validate
+```
+
+### Check Planned Changes
+
+``` bash
+terraform plan
+```
+
+### Check Terraform State
+
+``` bash
+terraform state list
+terraform show
+```
+
+### Reinitialize the Backend
+
+If the backend configuration changes:
+
+``` bash
+terraform init -reconfigure -backend-config=backend.hcl
+```
+
+### Check AWS Credentials
+
+Verify that the AWS CLI can access your account:
+
+``` bash
+aws sts get-caller-identity
+```
+
+### Check AWS Region
+
+Make sure the configured Terraform region matches the region used by
+your AWS resources and backend configuration.
+
+### Common Backend Issue
+
+If Terraform reports that no state file was found, verify:
+
+-   The S3 bucket exists.
+-   The bucket name in `backend.hcl` is correct.
+-   The backend key is correct.
+-   AWS credentials have permission to access the bucket.
+-   The Terraform backend has been initialized using `backend.hcl`.
 
 ## Cost Considerations
 
@@ -401,11 +533,9 @@ terraform destroy
 Check the current AWS pricing for your selected region before deploying
 resources.
 
-------------------------------------------------------------------------
-
 ## Security and GitHub Safety
 
-The following files should **not** be committed:
+The following files should not be committed:
 
 ``` text
 terraform.tfvars
@@ -415,6 +545,7 @@ terraform.tfvars
 .terraform/
 *.pem
 *.key
+backend.hcl
 ```
 
 The repository's `.gitignore` is configured to exclude these files.
@@ -432,62 +563,62 @@ contain sensitive values.
 
 Never upload Terraform state files to a public GitHub repository.
 
-------------------------------------------------------------------------
-
 ## Project Screenshots
 
 The following screenshots document the AWS resources and Terraform
 execution.
 
-### 1. VPC Resource Map
+### 1. Terraform Architecture
+
+![Terraform Architecture](screenshots/00-terraform-architecture.png)
+
+### 2. VPC Resource Map
 
 ![VPC Resource Map](screenshots/01-vpc-resource-map.png)
 
-### 2. VPC Subnets
+### 3. VPC Subnets
 
 ![VPC Subnets](screenshots/02-vpc-subnets.png)
 
-### 3. Route Tables
+### 4. Route Tables
 
 ![Route Tables](screenshots/03-route-tables.png)
 
-### 4. NAT Gateway
+### 5. NAT Gateway
 
 ![NAT Gateway](screenshots/04-nat-gateway.png)
 
-### 5. Web EC2 Instance
+### 6. Web EC2 Instance
 
 ![Web EC2 Instance](screenshots/05-web-ec2.png)
 
-### 6. App EC2 Instance
+### 7. App EC2 Instance
 
 ![App EC2 Instance](screenshots/06-app-ec2.png)
 
-### 7. Web Security Group
+### 8. Web Security Group
 
 ![Web Security Group](screenshots/07-web-security-group.png)
 
-### 8. App Security Group
+### 9. App Security Group
 
 ![App Security Group](screenshots/08-app-security-group.png)
 
-### 9. Database Security Group
+### 10. Database Security Group
 
 ![Database Security Group](screenshots/09-db-security-group.png)
 
-### 10. RDS Configuration
+### 11. RDS Configuration
 
 ![RDS Configuration](screenshots/10-rds-configuration.png)
 
-### 11. Terraform Output
+### 12. Terraform Output
 
 ![Terraform Output](screenshots/11-terraform-output.png)
 
-### 12. Terraform Plan
+### 13. Terraform Plan
 
 ![Terraform Plan](screenshots/12-terraform-plan.png)
-
-------------------------------------------------------------------------
 
 ## What I Practiced
 
@@ -515,18 +646,14 @@ This project helped me practice:
 -   Infrastructure cleanup with `terraform destroy`
 -   Basic infrastructure security practices
 
-------------------------------------------------------------------------
-
 ## Important Project Scope
 
-This project focuses on **infrastructure provisioning and networking**.
+This project focuses on infrastructure provisioning and networking.
 
 Terraform provisions the EC2 instances, but it does not automatically
 install or deploy an application on the Web or App instances. The
 security groups and network paths are configured so that an application
 can be deployed on top of the infrastructure.
-
-------------------------------------------------------------------------
 
 ## Learning Outcome
 
@@ -547,10 +674,7 @@ Database Tier
 while keeping the application and database tiers private from direct
 internet access.
 
-------------------------------------------------------------------------
-
 ## License
 
 This project is intended for learning and portfolio purposes.
-
 
